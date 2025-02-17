@@ -9,3 +9,9 @@
 | `POST /negotiate/{counterPartyUrl}` | Initiates a negotiation with another whitelist to determine common trusted participants. Expects path variable with the counterparty URL. |
 | `POST /receive-negotiation`         | Handles incoming negotiation requests, matches trusted participants, and returns the negotiation outcome.                                 |
 | `POST /notify`                      | Receives notifications related to data trustee selection.                                                                                 |
+
+## Data Exchange State Diagram
+
+The following diagram illustrates the state transitions during the data exchange process:
+
+![Data Exchange State Diagram](/stated.png)
