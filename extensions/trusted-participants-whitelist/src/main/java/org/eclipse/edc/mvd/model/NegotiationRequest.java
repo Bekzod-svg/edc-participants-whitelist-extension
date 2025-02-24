@@ -16,5 +16,5 @@ package org.eclipse.edc.mvd.model;
 
 import java.util.List;
 
-public record NegotiationInitiateRequest(List<Participant> participants, String hash) {
+public record NegotiationRequest(Participant dataSource, Participant dataSink, List<Participant> trustedDataTrustees, List<String> assets, String hash) {
 }
