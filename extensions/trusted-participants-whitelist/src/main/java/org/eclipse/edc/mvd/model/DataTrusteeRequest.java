@@ -16,5 +16,5 @@ package org.eclipse.edc.mvd.model;
 
 import java.util.List;
 
-public record DataTrusteeRequest(Participant dataSource, Participant dataSink, List<String> assets) {
+public record DataTrusteeRequest(Participant dataSource, Participant dataSink, List<String> assets, String senderType) {
 }
