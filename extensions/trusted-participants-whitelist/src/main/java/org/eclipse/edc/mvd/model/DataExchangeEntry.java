@@ -3,8 +3,11 @@ package org.eclipse.edc.mvd.model;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import java.util.UUID;
+
 
 public class DataExchangeEntry {
+    private String id;
     private Participant provider;
     private Participant consumer;
     private List<String> assets;
@@ -13,6 +16,7 @@ public class DataExchangeEntry {
     private LocalDateTime lastUpdatedAt;
 
     public DataExchangeEntry(Participant provider, Participant consumer, List<String> assets) {
+        this.id = UUID.randomUUID().toString();
         this.provider = provider;
         this.consumer = consumer;
         this.assets = assets;
@@ -22,6 +26,9 @@ public class DataExchangeEntry {
     }
 
     // Getters and setters
+    public String getId() {
+        return id;
+    }
 
     public Participant getProvider() {
         return provider;

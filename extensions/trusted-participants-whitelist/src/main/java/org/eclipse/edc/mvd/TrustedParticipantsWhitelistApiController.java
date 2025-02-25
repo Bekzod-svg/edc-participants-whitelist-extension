@@ -15,20 +15,10 @@
 package org.eclipse.edc.mvd;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.edc.mvd.model.DataTrusteeRequest;
-import org.eclipse.edc.mvd.model.NegotiationRequest;
-import org.eclipse.edc.mvd.model.NegotiationResponse;
-import org.eclipse.edc.mvd.model.Participant;
-import org.eclipse.edc.mvd.model.TrustedParticipantsResponse;
+import org.eclipse.edc.mvd.model.*;
 import org.eclipse.edc.mvd.service.DataExchangeQueueManager;
 import org.eclipse.edc.mvd.util.HashUtil;
 import org.eclipse.edc.spi.monitor.Monitor;
@@ -38,12 +28,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 /**
  * TrustedParticipantsWhitelistApiController provides endpoints
@@ -325,6 +316,64 @@ public class TrustedParticipantsWhitelistApiController {
     queueManager.processEntries();
 
     return Response.ok("{\"message\":\"Notification received\"}").build();
+  }
+
+  /**
+   * Manually updates the state of a data exchange entry.
+   *
+   * @param entryId  The ID of the data exchange entry.
+   * @param newState The new state to set ("IN_PROGRESS" or "COMPLETED").
+   * @return A response indicating the outcome.
+   */
+  @POST
+  @Path("update-entry-state")
+  public Response updateDataExchangeEntryState(@QueryParam("entryId") String entryId,
+                                               @QueryParam("newState") String newState) {
+    monitor.info("Received request to update state of entry " + entryId + " to " + newState);
+    DataExchangeState state;
+    try {
+      state = DataExchangeState.valueOf(newState);
+      if (state != DataExchangeState.IN_PROGRESS && state != DataExchangeState.COMPLETED) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\":\"Invalid state. Only IN_PROGRESS or COMPLETED allowed.\"}")
+                .build();
+      }
+    } catch (IllegalArgumentException e) {
+      return Response.status(Response.Status.BAD_REQUEST)
+              .entity("{\"error\":\"Invalid state value.\"}")
+              .build();
+    }
+
+    boolean success = queueManager.updateEntryStateManually(entryId, state);
+    if (success) {
+      return Response.ok("{\"message\":\"State updated successfully.\"}").build();
+    } else {
+      return Response.status(Response.Status.NOT_FOUND)
+              .entity("{\"error\":\"Entry not found or not in READY state.\"}")
+              .build();
+    }
+  }
+
+  @GET
+  @Path("data-exchange-entries")
+  public Response getDataExchangeEntries() {
+    monitor.info("Retrieving current DataExchangeEntries");
+    List<DataExchangeEntry> entries = queueManager.getEntries();
+
+    // Create a response object that contains entry information
+    List<Map<String, Object>> responseEntries = entries.stream().map(entry -> {
+      Map<String, Object> entryMap = new HashMap<>();
+      entryMap.put("id", entry.getId());
+      entryMap.put("provider", entry.getProvider());
+      entryMap.put("consumer", entry.getConsumer());
+      entryMap.put("assets", entry.getAssets());
+      entryMap.put("state", entry.getState());
+      entryMap.put("createdAt", entry.getCreatedAt());
+      entryMap.put("lastUpdatedAt", entry.getLastUpdatedAt());
+      return entryMap;
+    }).collect(Collectors.toList());
+
+    return Response.ok(responseEntries).build();
   }
 
 }

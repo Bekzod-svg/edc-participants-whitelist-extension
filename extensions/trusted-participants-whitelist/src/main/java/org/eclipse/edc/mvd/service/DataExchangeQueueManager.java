@@ -14,6 +14,10 @@ public class DataExchangeQueueManager {
     private List<DataExchangeEntry> queue = new ArrayList<>();
     private static final Duration TIMEOUT_DURATION = Duration.ofSeconds(5);
 
+    public List<DataExchangeEntry> getEntries() {
+        return new ArrayList<>(queue);
+    }
+
     public void addProviderNotification(Participant provider, List<String> assets) {
         DataExchangeEntry entry = findOrCreateEntry(provider, null, assets);
         entry.setProvider(provider);
@@ -42,15 +46,15 @@ public class DataExchangeQueueManager {
     }
 
     private void updateEntryState(DataExchangeEntry entry) {
-//        System.out.println("Updating entry state for entry: " + entry);
-//        System.out.println("Provider: " + entry.getProvider());
-//        System.out.println("Consumer: " + entry.getConsumer());
-//        System.out.println("Current State: " + entry.getState());
         if (entry.getProvider() != null && entry.getConsumer() != null) {
             entry.setState(DataExchangeState.READY);
-            System.out.println("Entry is READY: " + entry);
-        }else{
-            System.out.println("Entry is NOT READY: " + entry);
+            System.out.println("Second notification received from " + entry.getConsumer().getName() +
+                    ", conditions ready for data exchange.");
+        } else {
+            System.out.println("First notification received from " +
+                    (entry.getProvider() != null ? entry.getProvider().getName() : entry.getConsumer().getName()) +
+                    ", waiting for second notification...");
+            entry.setState(DataExchangeState.NOT_READY);
         }
     }
 
@@ -64,30 +68,21 @@ public class DataExchangeQueueManager {
                     if (hasTimedOut(entry)) {
                         entry.setState(DataExchangeState.FAILED);
                         System.out.println("Entry has FAILED due to timeout: " + entry);
-                        // Optionally notify parties about the failure
                     }
                     break;
 
                 case READY:
-                    if (hasTimedOut(entry)) {
-                        entry.setState(DataExchangeState.FAILED);
-                        System.out.println("Entry has FAILED due to timeout: " + entry);
-                        // Optionally notify parties about the failure
-                    } else {
-                        startDataExchange(entry);
-                    }
+                    // No automatic transition
                     break;
 
                 case IN_PROGRESS:
-                    System.out.println("Entry is IN_PROGRESS: " + entry);
-                    // Implement any required checks during data exchange
+                    System.out.println("Data exchange IN_PROGRESS for entry: " + entry);
                     break;
 
                 case COMPLETED:
-                    System.out.println("Entry is COMPLETED: " + entry);
+                    System.out.println("Data exchange COMPLETED for entry: " + entry);
                 case FAILED:
                     System.out.println("Entry FAILED: " + entry);
-                    // Remove completed or failed entries from the queue
                     iterator.remove();
                     break;
 
@@ -102,33 +97,18 @@ public class DataExchangeQueueManager {
         return duration.compareTo(TIMEOUT_DURATION) > 0;
     }
 
-    private void startDataExchange(DataExchangeEntry entry) {
-        entry.setState(DataExchangeState.IN_PROGRESS);
-        System.out.println("Starting data exchange for entry: " + entry);
-
-        boolean success = initiateDataExchange(entry);
-        if (success) {
-            entry.setState(DataExchangeState.COMPLETED);
-            System.out.println("Data exchange COMPLETED for entry: " + entry);
-        } else {
-            entry.setState(DataExchangeState.FAILED);
-            System.out.println("Data exchange FAILED for entry: " + entry);
+    // method to manually update the state via API
+    public boolean updateEntryStateManually(String entryId, DataExchangeState newState) {
+        for (DataExchangeEntry entry : queue) {
+            if (entry.getId().equals(entryId) && entry.getState() == DataExchangeState.READY) {
+                entry.setState(newState);
+                System.out.println("State manually updated to " + newState + " for entry: " + entry);
+                return true;
+            }
         }
+        System.out.println("Entry not found or not in READY state.");
+        return false;
     }
 
-    private boolean initiateDataExchange(DataExchangeEntry entry) {
-        // Implement the logic to start the data exchange between provider and consumer
-        // This is a placeholder implementation
-        try {
-            // Simulate data exchange logic here
-            System.out.println("Initiating data exchange between " + entry.getProvider().getName()
-                    + " and " + entry.getConsumer().getName() + " for assets " + entry.getAssets());
-            // Simulate success
-            return true;
-        } catch (Exception e) {
-            // Log exception details
-            System.err.println("Data exchange failed: " + e.getMessage());
-            return false;
-        }
-    }
+
 }
