@@ -1,5 +1,3 @@
-
-
 # User Journey and API Reference for Trusted Participants Whitelist API
 
 This README provides a comprehensive guide on how to perform a data exchange between a **Provider** and a **Consumer** through a **Data Trustee** using the Trusted Participants Whitelist API. The guide includes:
@@ -18,13 +16,13 @@ This README provides a comprehensive guide on how to perform a data exchange bet
 4. [API Endpoints](#api-endpoints)
 5. [Data Exchange State Diagram](#data-exchange-state-diagram)
 6. [Step-by-Step Guide](#step-by-step-guide)
-    - [1. Setup Trusted Participants](#1-setup-trusted-participants)
-    - [2. Initiate Negotiation](#2-initiate-negotiation)
-    - [3. Provider and Consumer Send Notifications](#3-provider-and-consumer-send-notifications)
-    - [4. Receive Entry IDs](#4-receive-entry-ids)
-    - [5. Manually Update Entry State to `IN_PROGRESS`](#5-manually-update-entry-state-to-in_progress)
-    - [6. Manually Update Entry State to `COMPLETED`](#6-manually-update-entry-state-to-completed)
-    - [7. Notifications Sent Upon Completion](#7-notifications-sent-upon-completion)
+   - [1. Setup Trusted Participants](#1-setup-trusted-participants)
+   - [2. Initiate Negotiation](#2-initiate-negotiation)
+   - [3. Provider and Consumer Send Notifications](#3-provider-and-consumer-send-notifications)
+   - [4. Receive Entry IDs](#4-receive-entry-ids)
+   - [5. Manually Update Entry State to `IN_PROGRESS`](#5-manually-update-entry-state-to-in_progress)
+   - [6. Manually Update Entry State to `COMPLETED`](#6-manually-update-entry-state-to-completed)
+   - [7. Notifications Sent Upon Completion](#7-notifications-sent-upon-completion)
 7. [Summary](#summary)
 8. [Notes](#notes)
 
@@ -45,16 +43,16 @@ This README provides a comprehensive guide on how to perform a data exchange bet
 ## Participants
 
 - **Provider**
-    - Name: `provider`
-    - URL: `http://localhost:29191/api/trusted-participants`
+  - Name: `provider`
+  - URL: `http://localhost:29191/api/trusted-participants`
 - **Consumer**
-    - Name: `consumer`
-    - URL: `http://localhost:19191/api/trusted-participants`
+  - Name: `consumer`
+  - URL: `http://localhost:19191/api/trusted-participants`
 - **Data Trustee**
-    - Name: `participant2`
-    - URL: `http://localhost:29591/api/trusted-participants`
+  - Name: `participant2`
+  - URL: `http://localhost:29591/api/trusted-participants`
 - **Assets**
-    - `asset1`, `asset2`
+  - `asset1`, `asset2`
 
 ---
 
@@ -71,41 +69,36 @@ This README provides a comprehensive guide on how to perform a data exchange bet
 
 ### Trusted Participants Whitelist API Endpoints
 
-| HTTP Request                                       | Description                                                                                                                               |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /trusted-participants/health`                 | Checks the health of the service and returns its status.                                                                                  |
-| `POST /trusted-participants/add`                   | Adds a trusted participant to the whitelist and returns the outcome.                                                                      |
-| `GET /trusted-participants/list`                   | Retrieves a list of trusted participants along with a hash for verification.                                                              |
-| `DELETE /trusted-participants/remove`              | Removes a trusted participant from the whitelist and returns the outcome.                                                                 |
+| HTTP Request                                             | Description                                                                                                                                   |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /trusted-participants/health`                       | Checks the health of the service and returns its status.                                                                                      |
+| `POST /trusted-participants/add`                         | Adds a trusted participant to the whitelist and returns the outcome.                                                                          |
+| `GET /trusted-participants/list`                         | Retrieves a list of trusted participants along with a hash for verification.                                                                  |
+| `DELETE /trusted-participants/remove`                    | Removes a trusted participant from the whitelist and returns the outcome.                                                                     |
 | `POST /trusted-participants/negotiate/{counterPartyUrl}` | Initiates a negotiation with another participant to determine common trusted participants. Expects a path variable with the counterparty URL. |
-| `POST /trusted-participants/receive-negotiation`   | Handles incoming negotiation requests, matches trusted participants, and returns the negotiation outcome.                                 |
-| `POST /trusted-participants/notify`                | Receives notifications related to data trustee selection and data exchange initiation.                                                    |
-| `POST /trusted-participants/update-entry-state`    | Manually updates the state of a data exchange entry (e.g., to `IN_PROGRESS` or `COMPLETED`).                                             |
-| `GET /trusted-participants/data-exchange-entries`  | Retrieves a list of current data exchange entries and their states.                                                                       |
-| `POST /trusted-participants/notify-completion`     | Receives completion notifications indicating the data exchange process has completed.                                                    |
+| `POST /trusted-participants/receive-negotiation`         | Handles incoming negotiation requests, matches trusted participants, and returns the negotiation outcome.                                     |
+| `POST /trusted-participants/notify`                      | Receives notifications related to data trustee selection and data exchange initiation.                                                        |
+| `POST /trusted-participants/update-entry-state`          | Manually updates the state of a data exchange entry (e.g., to `IN_PROGRESS` or `COMPLETED`).                                                  |
+| `GET /trusted-participants/data-exchange-entries`        | Retrieves a list of current data exchange entries and their states.                                                                           |
+| `POST /trusted-participants/notify-completion`           | Receives completion notifications indicating the data exchange process has completed.                                                         |
 
 ---
 
 ## Data Exchange State Diagram
 
-The following diagram illustrates the state transitions during the data exchange process:
+The following diagram illustrates the state transitions during the data trustee negotiation:
 
-stateDiagram
-[*] --> NOT_READY : One notification received
-
-    NOT_READY --> READY : Second notification received
-    NOT_READY --> FAILED : Timeout (1 day)
-
-    READY --> IN_PROGRESS : Start data exchange
-    READY --> FAILED : Timeout (1 day)
-
-    IN_PROGRESS --> COMPLETED : Exchange successful
-    IN_PROGRESS --> FAILED : Exchange failed
-
-    FAILED --> [*]
-    COMPLETED --> [*]
-
-
+```mermaid
+  stateDiagram [*] --> NOT_READY : One notification received
+  NOT_READY --> READY : Second notification received
+  NOT_READY --> FAILED : Timeout (1 day)
+  READY --> IN_PROGRESS : Start data exchange
+  READY --> FAILED : Timeout (1 day)
+  IN_PROGRESS --> COMPLETED : Exchange successful
+  IN_PROGRESS --> FAILED : Exchange failed
+  FAILED --> [*]
+  COMPLETED --> [*]
+```
 
 ---
 
@@ -157,7 +150,7 @@ POST /trusted-participants/add
 
 **Consumer Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:46.973363452 Adding trusted participant: participant2
 ```
 
@@ -177,19 +170,19 @@ POST /trusted-participants/negotiate/{counterPartyUrl}
 
 - `{counterPartyUrl}`: URL-encoded provider's negotiation endpoint:
 
-  ```
-  http%3A%2F%2Flocalhost%3A29191%2Fapi%2Ftrusted-participants%2Freceive-negotiation
+  ```text
+  http://localhost:29191/api/trusted-participants/receive-negotiation
   ```
 
 **Example Request:**
 
-```
-POST /trusted-participants/negotiate/http%3A%2F%2Flocalhost%3A29191%2Fapi%2Ftrusted-participants%2Freceive-negotiation
+```text
+POST /trusted-participants/receive-negotiation
 ```
 
 **Consumer Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.688358318 Negotiation initiated with: http://localhost:29191/api/trusted-participants/receive-negotiation; Response: {"dataSource":{"id":null,"name":"provider","url":"http://localhost:29191/api/trusted-participants"},"dataSink":{"id":null,"name":"consumer","url":"http://localhost:19191/api/trusted-participants"},"trustedDataTrustee":{"id":null,"name":"participant2","url":"http://localhost:29591/api/trusted-participants"},"assets":["asset1","asset2"]}
 ```
 
@@ -197,7 +190,7 @@ INFO 2025-03-03T13:51:57.688358318 Negotiation initiated with: http://localhost:
 
 **Provider Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.023948562 Received negotiation request
 ```
 
@@ -217,7 +210,7 @@ Both the **Provider** and **Consumer** send notifications to the **Data Trustee*
 
 **Endpoint:**
 
-```
+```text
 POST /trusted-participants/notify
 ```
 
@@ -242,7 +235,7 @@ POST /trusted-participants/notify
 
 **Provider Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.627115685 Notification sent to participant2; Response: {"message":"Notification received","entryId":"2454c106-66b4-4353-9697-7a978c7df3fd"}
 ```
 
@@ -250,7 +243,7 @@ INFO 2025-03-03T13:51:57.627115685 Notification sent to participant2; Response: 
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.550284112 Received notification: DataTrusteeRequest[dataSource=Participant{id='null', name='provider', url='http://localhost:29191/api/trusted-participants'}, dataSink=Participant{id='null', name='consumer', url='http://localhost:19191/api/trusted-participants'}, assets=[asset1, asset2], senderType=provider]
 First notification received from provider, waiting for second notification...
 ```
@@ -259,7 +252,7 @@ First notification received from provider, waiting for second notification...
 
 **Endpoint:**
 
-```
+```text
 POST /trusted-participants/notify
 ```
 
@@ -284,7 +277,7 @@ POST /trusted-participants/notify
 
 **Consumer Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.747735089 Notification sent to participant2; Response: {"message":"Notification received","entryId":"2454c106-66b4-4353-9697-7a978c7df3fd"}
 ```
 
@@ -292,7 +285,7 @@ INFO 2025-03-03T13:51:57.747735089 Notification sent to participant2; Response: 
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:51:57.737034239 Received notification: DataTrusteeRequest[dataSource=Participant{id='null', name='provider', url='http://localhost:29191/api/trusted-participants'}, dataSink=Participant{id='null', name='consumer', url='http://localhost:19191/api/trusted-participants'}, assets=[asset1, asset2], senderType=consumer]
 Second notification received from consumer, conditions ready for data exchange.
 ```
@@ -329,7 +322,7 @@ The **Data Trustee** manually updates the state of the data exchange entry to `I
 
 **Endpoint:**
 
-```
+```text
 POST /trusted-participants/update-entry-state
 ```
 
@@ -340,7 +333,7 @@ POST /trusted-participants/update-entry-state
 
 **Example Request:**
 
-```
+```text
 POST /trusted-participants/update-entry-state?entryId=2454c106-66b4-4353-9697-7a978c7df3fd&newState=IN_PROGRESS
 ```
 
@@ -354,7 +347,7 @@ POST /trusted-participants/update-entry-state?entryId=2454c106-66b4-4353-9697-7a
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:52:35.37296158 Received request to update state of entry 2454c106-66b4-4353-9697-7a978c7df3fd to IN_PROGRESS
 State manually updated to IN_PROGRESS for entry: org.eclipse.edc.mvd.model.DataExchangeEntry@399459d7
 ```
@@ -367,7 +360,7 @@ After the data exchange process is complete, the **Data Trustee** updates the st
 
 **Endpoint:**
 
-```
+```text
 POST /trusted-participants/update-entry-state
 ```
 
@@ -378,7 +371,7 @@ POST /trusted-participants/update-entry-state
 
 **Example Request:**
 
-```
+```text
 POST /trusted-participants/update-entry-state?entryId=2454c106-66b4-4353-9697-7a978c7df3fd&newState=COMPLETED
 ```
 
@@ -392,7 +385,7 @@ POST /trusted-participants/update-entry-state?entryId=2454c106-66b4-4353-9697-7a
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:53:02.37296158 Received request to update state of entry 2454c106-66b4-4353-9697-7a978c7df3fd to COMPLETED
 State manually updated to COMPLETED for entry: org.eclipse.edc.mvd.model.DataExchangeEntry@399459d7
 ```
@@ -411,7 +404,7 @@ Upon updating the state to `COMPLETED`, the **Data Trustee** automatically sends
 
 **Endpoint (Provider’s API):**
 
-```
+```text
 POST /trusted-participants/notify-completion
 ```
 
@@ -426,7 +419,7 @@ POST /trusted-participants/notify-completion
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:53:02.539751291 Completion Notification sent to provider: provider; Response: {"message":"Completion notification received."}
 ```
 
@@ -434,7 +427,7 @@ INFO 2025-03-03T13:53:02.539751291 Completion Notification sent to provider: pro
 
 **Provider Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:53:02.508754106 Received completion notification for role: provider. Message: Data exchange has been completed for assets: [asset1, asset2]
 ```
 
@@ -442,7 +435,7 @@ INFO 2025-03-03T13:53:02.508754106 Received completion notification for role: pr
 
 **Endpoint (Consumer’s API):**
 
-```
+```text
 POST /trusted-participants/notify-completion
 ```
 
@@ -457,7 +450,7 @@ POST /trusted-participants/notify-completion
 
 **Trustee Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:53:02.566297676 Completion Notification sent to consumer: consumer; Response: {"message":"Completion notification received."}
 ```
 
@@ -465,7 +458,7 @@ INFO 2025-03-03T13:53:02.566297676 Completion Notification sent to consumer: con
 
 **Consumer Terminal Log:**
 
-```
+```text
 INFO 2025-03-03T13:53:02.561573437 Received completion notification for role: consumer. Message: Data exchange has been completed for assets: [asset1, asset2]
 ```
 
@@ -484,7 +477,6 @@ This user journey demonstrates how the **Provider** and **Consumer** coordinate 
 7. **Completion Notifications:** Upon completion, the **Data Trustee** informs both the **Provider** and **Consumer**.
 
 ---
-
 
 ## Notes
 
