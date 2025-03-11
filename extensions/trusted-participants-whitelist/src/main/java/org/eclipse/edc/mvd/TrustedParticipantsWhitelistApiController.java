@@ -61,7 +61,7 @@ public class TrustedParticipantsWhitelistApiController {
     this.trustedList = TrustedParticipantsWhitelist.getInstance();
     this.httpClient = HttpClient.newHttpClient();
     this.objectMapper = new ObjectMapper();
-    this.queueManager = new DataExchangeQueueManager();
+    this.queueManager = new DataExchangeQueueManager(objectMapper, httpClient, monitor);
   }
 
   /**
@@ -299,14 +299,15 @@ public class TrustedParticipantsWhitelistApiController {
   @Path("notify")
   public Response receiveNotification(DataTrusteeRequest request) {
     monitor.info("Received notification: " + request);
+    String entryId;
 
     // Determine the sender type from the request
     String senderType = request.senderType(); // "provider" or "consumer"
 
     if ("provider".equalsIgnoreCase(senderType)) {
-      queueManager.addProviderNotification(request.dataSource(), request.assets());
+      entryId = queueManager.addProviderNotification(request.dataSource(), request.assets());
     } else if ("consumer".equalsIgnoreCase(senderType)) {
-      queueManager.addConsumerNotification(request.dataSink(), request.assets());
+      entryId= queueManager.addConsumerNotification(request.dataSink(), request.assets());
     } else {
       return Response.status(Response.Status.BAD_REQUEST)
               .entity("{\"error\":\"Invalid sender type\"}")
@@ -314,8 +315,20 @@ public class TrustedParticipantsWhitelistApiController {
     }
 
     queueManager.processEntries();
+    Map<String, String> response = new HashMap<>();
+    response.put("message", "Notification received");
+    response.put("entryId", entryId);
 
-    return Response.ok("{\"message\":\"Notification received\"}").build();
+    return Response.ok(response).build();
+  }
+
+  @POST
+  @Path("notify-completion")
+  public Response receiveNotificationCompletion(Map<String, String> notification) {
+    String message = notification.get("message");
+    String role = notification.get("role");
+    monitor.info("Received completion notification for role: " + role + ". Message: " + message);
+    return Response.ok("{\"message\":\"Completion notification received.\"}").build();
   }
 
   /**

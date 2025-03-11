@@ -1,33 +1,49 @@
 package org.eclipse.edc.mvd.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.edc.mvd.model.DataExchangeEntry;
 import org.eclipse.edc.mvd.model.DataExchangeState;
 import org.eclipse.edc.mvd.model.Participant;
 
+import org.eclipse.edc.spi.monitor.Monitor;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class DataExchangeQueueManager {
     private List<DataExchangeEntry> queue = new ArrayList<>();
     private static final Duration TIMEOUT_DURATION = Duration.ofSeconds(5);
 
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
+    private final Monitor monitor;
+
+    public DataExchangeQueueManager(ObjectMapper objectMapper, HttpClient httpClient, Monitor monitor){
+        this.objectMapper = objectMapper;
+        this.httpClient = httpClient;
+        this.monitor = monitor;
+    }
+
     public List<DataExchangeEntry> getEntries() {
         return new ArrayList<>(queue);
     }
 
-    public void addProviderNotification(Participant provider, List<String> assets) {
+    public String addProviderNotification(Participant provider, List<String> assets) {
         DataExchangeEntry entry = findOrCreateEntry(provider, null, assets);
         entry.setProvider(provider);
         updateEntryState(entry);
+        return entry.getId();
     }
 
-    public void addConsumerNotification(Participant consumer, List<String> assets) {
+    public String addConsumerNotification(Participant consumer, List<String> assets) {
         DataExchangeEntry entry = findOrCreateEntry(null, consumer, assets);
         entry.setConsumer(consumer);
         updateEntryState(entry);
+        return entry.getId();
     }
 
     private DataExchangeEntry findOrCreateEntry(Participant provider, Participant consumer, List<String> assets) {
@@ -81,6 +97,8 @@ public class DataExchangeQueueManager {
 
                 case COMPLETED:
                     System.out.println("Data exchange COMPLETED for entry: " + entry);
+                    sendCompletionNotification(entry);
+                    iterator.remove();
                 case FAILED:
                     System.out.println("Entry FAILED: " + entry);
                     iterator.remove();
@@ -100,14 +118,60 @@ public class DataExchangeQueueManager {
     // method to manually update the state via API
     public boolean updateEntryStateManually(String entryId, DataExchangeState newState) {
         for (DataExchangeEntry entry : queue) {
-            if (entry.getId().equals(entryId) && entry.getState() == DataExchangeState.READY) {
+            if (entry.getId().equals(entryId) && entry.getState() == DataExchangeState.READY || entry.getState() == DataExchangeState.IN_PROGRESS) {
                 entry.setState(newState);
                 System.out.println("State manually updated to " + newState + " for entry: " + entry);
+                if(newState == DataExchangeState.COMPLETED){
+                    sendCompletionNotification(entry);
+                }
                 return true;
             }
         }
         System.out.println("Entry not found or not in READY state.");
         return false;
+    }
+
+    public void sendCompletionNotification(DataExchangeEntry entry){
+        Participant provider = entry.getProvider();
+        Participant consumer = entry.getConsumer();
+        String notificationMessage = "Data exchange has been completed for assets: " + entry.getAssets();
+
+        try {
+            if(provider != null && provider.getUrl() != null){
+                String providerNotificationUrl = provider.getUrl() + "/notify-completion";
+                Map<String, String> notification = new HashMap<>();
+                notification.put("message", notificationMessage);
+                notification.put("role", "provider");
+                String requestBody = objectMapper.writeValueAsString(notification);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(providerNotificationUrl))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                monitor.info("Completion Notification send to provider: " + provider.getName() + "; Response: " + response.body());
+            }
+
+            if(consumer != null && consumer.getUrl() != null){
+                String consumerNotificationUrl = consumer.getUrl() + "/notify-completion";
+                Map<String, String> notification = new HashMap<>();
+                notification.put("message", notificationMessage);
+                notification.put("role", "consumer");
+                String requestBody = objectMapper.writeValueAsString(notification);
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(consumerNotificationUrl))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .build();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                monitor.info("Completion Notification send to consumer: " + consumer.getName() + "; Response: " + response.body());
+            }
+        }catch (Exception e){
+            monitor.warning("Failed to send completion notifications: " + e.getMessage());
+        }
     }
 
 
