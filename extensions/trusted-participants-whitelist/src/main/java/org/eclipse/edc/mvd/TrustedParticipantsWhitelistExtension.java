@@ -18,6 +18,13 @@ import org.eclipse.edc.runtime.metamodel.annotation.Inject;
 import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.web.spi.WebService;
+import org.eclipse.edc.mvd.model.InMemoryMonitor;
+import org.eclipse.edc.spi.monitor.Monitor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.net.http.HttpClient;
+import java.io.IOException;
+
 
 /**
  * Extension to maintain trusted participants.
@@ -34,6 +41,11 @@ public class TrustedParticipantsWhitelistExtension implements ServiceExtension {
 
   @Override
   public void initialize(ServiceExtensionContext context) {
-    webService.registerResource(new TrustedParticipantsWhitelistApiController(context.getMonitor()));
+    Monitor originalMonitor = context.getMonitor();
+    HttpClient httpClient = HttpClient.newHttpClient();
+    context.registerService(HttpClient.class, httpClient);
+    ObjectMapper objectMapper = new ObjectMapper();
+    InMemoryMonitor inMemoryMonitor = new InMemoryMonitor(originalMonitor);
+    webService.registerResource(new TrustedParticipantsWhitelistApiController(inMemoryMonitor, objectMapper, httpClient));
   }
 }

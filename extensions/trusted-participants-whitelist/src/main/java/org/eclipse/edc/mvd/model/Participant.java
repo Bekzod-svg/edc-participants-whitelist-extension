@@ -24,7 +24,6 @@ public class Participant {
     private final String name;
     private final String url;
 
-
     @JsonCreator
     public Participant(
             @JsonProperty("id") String id,
