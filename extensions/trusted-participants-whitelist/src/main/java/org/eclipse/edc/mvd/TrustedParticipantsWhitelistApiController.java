@@ -36,7 +36,6 @@ import org.eclipse.edc.mvd.model.TrustedParticipantsResponse;
 import org.eclipse.edc.mvd.service.DataExchangeQueueManager;
 import org.eclipse.edc.mvd.util.HashUtil;
 import org.eclipse.edc.spi.monitor.Monitor;
-import org.eclipse.edc.mvd.service.PushService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -65,7 +64,6 @@ public class TrustedParticipantsWhitelistApiController {
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
   private final DataExchangeQueueManager queueManager;
-  private final PushService pushService;
 
   /**
    * Constructor for TrustedParticipantsWhitelistApiController.
@@ -73,15 +71,13 @@ public class TrustedParticipantsWhitelistApiController {
    * @param monitor The monitor used for logging and monitoring.
    */
   @Inject
-  public TrustedParticipantsWhitelistApiController(Monitor monitor, PushService pushService, ObjectMapper objectMapper, HttpClient httpClient) {
+  public TrustedParticipantsWhitelistApiController(Monitor monitor, ObjectMapper objectMapper, HttpClient httpClient) {
     this.monitor = monitor;
-    this.pushService= pushService;
     this.trustedList = TrustedParticipantsWhitelist.getInstance();
     this.httpClient = httpClient;
     this.objectMapper = objectMapper;
     this.queueManager = new DataExchangeQueueManager(objectMapper, httpClient, monitor);
   }
-//  public TrustedParticipantsWhitelistApiController (){};
 
   /**
    * Checks the health of the service.
@@ -172,23 +168,23 @@ public class TrustedParticipantsWhitelistApiController {
       List<String> assets = negotiationRequest.assets();
 
       negotiationRequest = new NegotiationRequest(
-          dataSource,
-          dataSink,
-          trustedDataTrustees,
-          assets,
-          hash);
+              dataSource,
+              dataSink,
+              trustedDataTrustees,
+              assets,
+              hash);
 
       String receiveNegotiationEndpoint = dataSource.getUrl() + "/receive-negotiation";
       HttpRequest request = HttpRequest.newBuilder()
-          .uri(URI.create(receiveNegotiationEndpoint))
-          .header("Content-Type", "application/json")
-          .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(negotiationRequest)))
-          .build();
+              .uri(URI.create(receiveNegotiationEndpoint))
+              .header("Content-Type", "application/json")
+              .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(negotiationRequest)))
+              .build();
 
       // Send the request and get the response
       HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       monitor.info(
-          "Received Response from Provider: Status Code = " + response.statusCode() + ", Body = " + response.body());
+              "Received Response from Provider: Status Code = " + response.statusCode() + ", Body = " + response.body());
 
       // Deserialize negotiation response
       NegotiationResponse negotiationResponse = objectMapper.readValue(response.body(), NegotiationResponse.class);
@@ -204,30 +200,22 @@ public class TrustedParticipantsWhitelistApiController {
       // Prepare the notification request
       String notificationUrl = chosenDataTrustee.getUrl() + "/notify";
       DataTrusteeRequest dataTrusteeRequest = new DataTrusteeRequest(
-            negotiationResponse.dataSource(),
-            negotiationResponse.dataSink(),
-            negotiationResponse.assets(),
-            "consumer");
+              negotiationResponse.dataSource(),
+              negotiationResponse.dataSink(),
+              negotiationResponse.assets(),
+              "consumer");
       String notificationBody = objectMapper.writeValueAsString(dataTrusteeRequest);
 
-        // Send the notification
-        HttpRequest notificationRequest = HttpRequest.newBuilder()
-            .uri(URI.create(notificationUrl))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(notificationBody))
-            .build();
+      // Send the notification
+      HttpRequest notificationRequest = HttpRequest.newBuilder()
+              .uri(URI.create(notificationUrl))
+              .header("Content-Type", "application/json")
+              .POST(HttpRequest.BodyPublishers.ofString(notificationBody))
+              .build();
 
-        HttpResponse<String> notificationResponse = httpClient.send(notificationRequest, HttpResponse.BodyHandlers.ofString());
-        monitor.info("Notification sent to " + chosenDataTrustee.getName() + "; Response: " + notificationResponse.body());
+      HttpResponse<String> notificationResponse = httpClient.send(notificationRequest, HttpResponse.BodyHandlers.ofString());
+      monitor.info("Notification sent to " + chosenDataTrustee.getName() + "; Response: " + notificationResponse.body());
 
-      if(chosenDataTrustee != null && !assets.isEmpty()) {
-        assets.forEach(id -> {
-          pushService.start(
-                  id,
-                  chosenDataTrustee.getUrl()
-          );
-        });
-      }
       return response.body();
     } catch (Exception e) {
       monitor.severe("Failed to initiate negotiation with provider-connector", e);
@@ -235,9 +223,6 @@ public class TrustedParticipantsWhitelistApiController {
     }
   }
 
-  private void pushAssets(Participant target, List<String> assets){
-    assets.forEach(id -> {pushService.start(id, target.getUrl());});
-  }
 
   /**
    * Receives a negotiation request from another participant, matches trusted
@@ -265,34 +250,34 @@ public class TrustedParticipantsWhitelistApiController {
     }
 
     List<Participant> matches = trustedList.getTrustedParticipants().stream()
-        .filter(p -> negotiationRequest.trustedDataTrustees().stream()
-            .anyMatch(nrp -> p.getName().equals(nrp.getName()) && p.getUrl().equals(nrp.getUrl())))
-        .toList();
+            .filter(p -> negotiationRequest.trustedDataTrustees().stream()
+                    .anyMatch(nrp -> p.getName().equals(nrp.getName()) && p.getUrl().equals(nrp.getUrl())))
+            .toList();
     // Select the first matched participant
     Participant chosenDataTrustee = matches.isEmpty() ? null : matches.get(0);
     if (chosenDataTrustee != null) {
       try {
         String trusteeNotificationUrl = chosenDataTrustee.getUrl() + "/notify";
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(
-                trusteeNotificationUrl))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(new DataTrusteeRequest(
-                negotiationRequest.dataSource(),
-                negotiationRequest.dataSink(),
-                negotiationRequest.assets(),
-                "provider"))))
-            .build();
+                .uri(URI.create(
+                        trusteeNotificationUrl))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(new DataTrusteeRequest(
+                        negotiationRequest.dataSource(),
+                        negotiationRequest.dataSink(),
+                        negotiationRequest.assets(),
+                        "provider"))))
+                .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         monitor.info("Notification sent to " + chosenDataTrustee.getName() + "; Response: " + response.body());
       } catch (Exception e) {
         monitor.warning("Failed to send notification to " + chosenDataTrustee.getName() + ": " + e.getMessage());
       }
       var negotiationResponse = new NegotiationResponse(
-          negotiationRequest.dataSource(),
-          negotiationRequest.dataSink(),
-          chosenDataTrustee,
-          negotiationRequest.assets());
+              negotiationRequest.dataSource(),
+              negotiationRequest.dataSink(),
+              chosenDataTrustee,
+              negotiationRequest.assets());
       try {
         // Serialize the negotiation response to JSON
         String responseBody = objectMapper.writeValueAsString(negotiationResponse);
@@ -321,8 +306,8 @@ public class TrustedParticipantsWhitelistApiController {
       entryId = queueManager.addConsumerNotification(request.dataSink(), request.assets());
     } else {
       return Response.status(Response.Status.BAD_REQUEST)
-          .entity("{\"error\":\"Invalid sender type\"}")
-          .build();
+              .entity("{\"error\":\"Invalid sender type\"}")
+              .build();
     }
 
     queueManager.processEntries();
@@ -359,13 +344,13 @@ public class TrustedParticipantsWhitelistApiController {
       state = DataExchangeState.valueOf(newState);
       if (state != DataExchangeState.IN_PROGRESS && state != DataExchangeState.COMPLETED) {
         return Response.status(Response.Status.BAD_REQUEST)
-            .entity("{\"error\":\"Invalid state. Only IN_PROGRESS or COMPLETED allowed.\"}")
-            .build();
+                .entity("{\"error\":\"Invalid state. Only IN_PROGRESS or COMPLETED allowed.\"}")
+                .build();
       }
     } catch (IllegalArgumentException e) {
       return Response.status(Response.Status.BAD_REQUEST)
-          .entity("{\"error\":\"Invalid state value.\"}")
-          .build();
+              .entity("{\"error\":\"Invalid state value.\"}")
+              .build();
     }
 
     boolean success = queueManager.updateEntryStateManually(entryId, state);
@@ -373,8 +358,8 @@ public class TrustedParticipantsWhitelistApiController {
       return Response.ok("{\"message\":\"State updated successfully.\"}").build();
     } else {
       return Response.status(Response.Status.NOT_FOUND)
-          .entity("{\"error\":\"Entry not found or not in READY state.\"}")
-          .build();
+              .entity("{\"error\":\"Entry not found or not in READY state.\"}")
+              .build();
     }
   }
 
